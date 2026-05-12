@@ -11,7 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   testWidgets('App loads home tab', (WidgetTester tester) async {
-    await tester.pumpWidget(const ExpenseAnalyserApp());
+    await tester.pumpWidget(MyApp());
     await tester.pumpAndSettle();
 
     expect(find.text('Home'), findsOneWidget);
