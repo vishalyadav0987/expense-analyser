@@ -7,12 +7,17 @@ class TypeSelected extends StatefulWidget {
   final Set<String> selected;
   final String bottomSheetHeading;
   final String title;
+  final bool singleSelect;
+  final bool showAddButton;
+
   const TypeSelected({
     super.key,
     required this.modes,
     required this.selected,
     required this.bottomSheetHeading,
     this.title = "Payment Modes",
+    this.singleSelect = false,
+    this.showAddButton = true,
   });
 
   @override
@@ -24,14 +29,16 @@ class _TypeSelectedState extends State<TypeSelected> {
     if (value.isEmpty || widget.modes.contains(value)) return;
 
     setState(() {
-      // Convert to a modifiable list if it isn't one
       final modifiableModes = List<String>.from(widget.modes);
       final modifiableSelected = Set<String>.from(widget.selected);
 
       modifiableModes.add(value);
+      
+      if (widget.singleSelect) {
+        modifiableSelected.clear();
+      }
       modifiableSelected.add(value);
 
-      // Update the actual references
       widget.modes.clear();
       widget.modes.addAll(modifiableModes);
 
@@ -41,6 +48,7 @@ class _TypeSelectedState extends State<TypeSelected> {
   }
 
   void _openAddSheet() {
+    if (!widget.showAddButton) return;
     final controller = TextEditingController();
 
     showModalBottomSheet(
@@ -72,18 +80,11 @@ class _TypeSelectedState extends State<TypeSelected> {
                   ),
                 ),
                 const SizedBox(height: 16),
-          
                 Text(
                   widget.bottomSheetHeading,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
                 ),
-          
                 const SizedBox(height: 16),
-          
                 TextField(
                   controller: controller,
                   style: const TextStyle(color: Colors.white),
@@ -92,14 +93,10 @@ class _TypeSelectedState extends State<TypeSelected> {
                     hintStyle: TextStyle(color: AppColors.textSecondary),
                     filled: true,
                     fillColor: AppColors.background,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
-          
                 const SizedBox(height: 16),
-          
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
@@ -125,19 +122,22 @@ class _TypeSelectedState extends State<TypeSelected> {
       title: widget.title,
       items: widget.modes,
       selected: widget.selected,
+      showAddButton: widget.showAddButton,
       onToggle: (value) {
         setState(() {
-          // Create a copy of the Set to ensure it is modifiable
           final modifiableSelected = Set<String>.from(widget.selected);
 
-          if (modifiableSelected.contains(value)) {
-            modifiableSelected.remove(value);
-          } else {
+          if (widget.singleSelect) {
+            modifiableSelected.clear();
             modifiableSelected.add(value);
+          } else {
+            if (modifiableSelected.contains(value)) {
+              modifiableSelected.remove(value);
+            } else {
+              modifiableSelected.add(value);
+            }
           }
 
-          // Note: You should ideally notify the parent or update a local variable
-          // If 'selected' is managed by a parent, use a callback to pass 'modifiableSelected' up.
           widget.selected.clear();
           widget.selected.addAll(modifiableSelected);
         });

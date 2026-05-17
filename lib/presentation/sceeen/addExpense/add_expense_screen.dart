@@ -5,6 +5,7 @@ import 'package:expense_analyser/core/constants/app_text_styles.dart';
 import 'package:expense_analyser/presentation/sceeen/addExpense/widgets/circular_icon_button.dart';
 import 'package:expense_analyser/presentation/sceeen/addExpense/widgets/scanner_card.dart';
 import 'package:expense_analyser/presentation/sceeen/addExpense/widgets/type_selected.dart';
+import 'package:expense_analyser/presentation/sceeen/addExpense/widgets/categorized_type_selector.dart'; // Add this import
 import 'package:expense_analyser/presentation/widgets/customBorder/custom_dotted_border.dart';
 import 'package:flutter/material.dart';
 
@@ -19,8 +20,20 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final TextEditingController amountController = TextEditingController(
     text: "248.50",
   );
-
   final TextEditingController descriptionController = TextEditingController();
+
+  // Selected state for Payment
+  final List<String> _paymentModes = ["UPI", "Bank", "Cash", "Credit"];
+  final Set<String> _selectedPaymentMode = {"UPI"}; // Set default
+
+  // Selected state for Category maps
+  final Map<String, List<String>> _expenseCategories = {
+    "Need": ["Groceries", "Rent", "Utilities", "Healthcare"],
+    "Want": ["Dining Out", "Shopping", "Entertainment"],
+    "Saving": ["Investments", "Emergency Fund", "Stocks"],
+  };
+  final Set<String> _selectedCategory = {"Groceries"}; // Set default
+
   @override
   void dispose() {
     amountController.dispose();
@@ -47,6 +60,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minHeight: constraints.maxHeight),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // HEADER
                       Padding(
@@ -74,11 +88,13 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                       SizedBox(height: AppSpacing.lg),
 
                       // TOTAL AMOUNT
-                      Text(
-                        "TOTAL AMOUNT",
-                        style: AppTextStyles.mutedLabel(
-                          context,
-                        ).copyWith(letterSpacing: 2),
+                      Center(
+                        child: Text(
+                          "TOTAL AMOUNT",
+                          style: AppTextStyles.mutedLabel(
+                            context,
+                          ).copyWith(letterSpacing: 2),
+                        ),
                       ),
                       SizedBox(height: AppSpacing.sm),
                       Row(
@@ -98,9 +114,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                               width: 200,
                               child: TextField(
                                 controller: amountController,
-                                keyboardType: TextInputType.numberWithOptions(
-                                  decimal: true,
-                                ),
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
                                 textAlign: TextAlign.center,
                                 style: AppTextStyles.heading1(context).copyWith(
                                   color: AppColors.primary,
@@ -122,11 +139,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                       const ScannerCard(),
                       SizedBox(height: AppSpacing.lg),
 
-                      // CATEGORIES
+                      // PAYMENT MODES (Single select, no add button)
                       TypeSelected(
-                        modes: ["UPI", "Bank", "Cash", "Credit"],
-                        selected: {"UPI", "Bank"},
-                        bottomSheetHeading: "Add Custom Payment Mode",
+                        modes: _paymentModes,
+                        selected: _selectedPaymentMode,
+                        bottomSheetHeading: "", // Unused since Add is hidden
+                        title: "Payment Mode",
+                        singleSelect: true,
+                        showAddButton: false,
                       ),
                       SizedBox(height: AppSpacing.lg),
 
@@ -147,9 +167,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                               Icons.description_outlined,
                               color: AppColors.textMuted,
                             ),
-
                             SizedBox(width: AppSpacing.md),
-
                             Expanded(
                               child: TextField(
                                 controller: descriptionController,
@@ -160,21 +178,19 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                                 ),
                               ),
                             ),
-
                             const Icon(Icons.eco, color: AppColors.primaryDark),
                           ],
                         ),
                       ),
                       SizedBox(height: AppSpacing.md),
 
-                      TypeSelected(
-                        modes: ["UPI", "Bank", "Cash", "Credit"],
-                        selected: {"UPI", "Bank"},
-                        bottomSheetHeading: "Add Custom Payment Mode",
+                      // CATEGORIES (Need/Want/Saving tabs)
+                      CategorizedTypeSelector(
+                        categories: _expenseCategories,
+                        selected: _selectedCategory,
                         title: "Category",
                       ),
                       SizedBox(height: AppSpacing.xl),
-                      SizedBox(height: AppSpacing.lg),
                     ],
                   ),
                 ),

@@ -10,6 +10,7 @@ class CategorySelector extends StatelessWidget {
   final Set<String> selected;
   final Function(String) onToggle;
   final VoidCallback onAddTap;
+  final bool showAddButton;
 
   const CategorySelector({
     super.key,
@@ -18,6 +19,7 @@ class CategorySelector extends StatelessWidget {
     required this.selected,
     required this.onToggle,
     required this.onAddTap,
+    this.showAddButton = true,
   });
 
   @override
@@ -25,20 +27,24 @@ class CategorySelector extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: AppTextStyles.heading3(
-            context,
-          ).copyWith(fontSize: 18, letterSpacing: 1.2),
-        ),
-        SizedBox(height: AppSpacing.md),
+        if (title.isNotEmpty) ...[
+          Text(
+            title,
+            style: AppTextStyles.heading3(
+              context,
+            ).copyWith(fontSize: 18, letterSpacing: 1.2),
+          ),
+          SizedBox(height: AppSpacing.md),
+        ],
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),
           child: Row(
             children: [
-              _AddChip(onTap: onAddTap),
-              SizedBox(width: AppSpacing.md),
+              if (showAddButton) ...[
+                _AddChip(onTap: onAddTap),
+                SizedBox(width: AppSpacing.md),
+              ],
               // Map items to the new UI chips
               ...items.map((item) {
                 final isSelected = selected.contains(item);
@@ -87,12 +93,9 @@ class _TagChip extends StatelessWidget {
           border: Border.all(
             color: isSelected
                 ? AppColors.primary
-                : AppColors.white.withOpacity(
-                    0.08,
-                  ), // Softer border for unselected
+                : AppColors.white.withOpacity(0.08),
             width: 1.5,
           ),
-          // Adding a subtle neon glow when selected
           boxShadow: isSelected
               ? [
                   BoxShadow(
@@ -106,7 +109,6 @@ class _TagChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Optional: Dynamic Icon logic could be added here
             Text(
               label,
               style: AppTextStyles.button(context).copyWith(
