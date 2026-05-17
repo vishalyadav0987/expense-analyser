@@ -1,6 +1,6 @@
 class ApiEndpoints {
   // Base URL (In production, this comes from .env file)
-  static const String baseUrl = 'http://192.168.1.10:8080/api/v1';
+  static const String baseUrl = 'http://169.254.4.189:8080/api/v1';
 
   // Auth Routes
   static const String requestOtp = '$baseUrl/auth/request-otp';

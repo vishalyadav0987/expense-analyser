@@ -327,7 +327,11 @@ class _MpinScreenState extends State<MpinScreen> {
               ].map((n) => _keyBtn(n)),
 
               widget.isSetupMode
-                  ? const SizedBox.shrink()
+                  ? _keyBtn(
+                      "",
+                      isIcon: true,
+                      icon: Icons.contact_support_outlined,
+                    )
                   : _keyBtn(
                       "bio",
                       isIcon: true,
