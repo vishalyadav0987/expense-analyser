@@ -67,6 +67,8 @@ class MyApp extends StatelessWidget {
               // 6. Fully Authenticated -> Go to Dashboard!
               else if (state is AuthBiometricSetupRequired) {
                 appRouter.go('/biometric-setup');
+              } else if (state is AuthInitialSetupRequired) {
+                appRouter.go('/setup');
               }
               // 8. Fully Authenticated
               else if (state is AuthAuthenticated) {

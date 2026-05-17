@@ -117,6 +117,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         final hasOptedOut = await secureStorage.hasBiometricOptedOut();
         final hasEnabled = await secureStorage.isBiometricEnabled();
 
+        // 1. Get User Data safely
+        final userData = await secureStorage.getUserData();
+
+        // 2. Safely extract boolean (Default to false if null)
+        final bool isSetupComplete = userData?['SetupComplete'] == true;
+
         // Use your biometric service to check if phone has fingerprint/FaceID
         // (Assuming you have a biometricService class. If not, just use local_auth here)
         final isHardwareSupported =
@@ -126,6 +132,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           // Hardware hai, par abhi tak na enable kiya hai, na mana kiya hai.
           // Bhejo setup screen par!
           emit(AuthBiometricSetupRequired());
+        } else if (isSetupComplete) {
+          emit(AuthInitialSetupRequired());
         } else {
           // Ya toh phone purana hai, ya user pehle mana kar chuka hai.
           // Seedha Dashboard bhej do!
@@ -144,7 +152,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(AuthLoading()); // Thodi der spinner dikhao
       // Flag save karo taaki zindagi mein dobara ye screen na aaye
       await secureStorage.setBiometricOptOut(true);
-      emit(AuthAuthenticated()); // Chalo Dashboard!
+      final userData = await secureStorage.getUserData();
+      final bool isSetupComplete = userData?['SetupComplete'] == true;
+
+      if (!isSetupComplete) {
+        emit(AuthInitialSetupRequired());
+      } else {
+        emit(AuthAuthenticated());
+      }
     });
 
     // ---------------------------------------------------------
@@ -155,7 +170,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       // BLoC ko bas flag save karna hai.
       emit(AuthLoading());
       await secureStorage.setBiometricEnabled(true);
-      emit(AuthAuthenticated());
+      final userData = await secureStorage.getUserData();
+      final bool isSetupComplete = userData?['SetupComplete'] == true;
+
+      if (!isSetupComplete) {
+        emit(AuthInitialSetupRequired());
+      } else {
+        emit(AuthAuthenticated());
+      }
     });
 
     // ---------------------------------------------------------
@@ -169,6 +191,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         final hasOptedOut = await secureStorage.hasBiometricOptedOut();
         final hasEnabled = await secureStorage.isBiometricEnabled();
 
+        // 1. Get User Data safely
+        final userData = await secureStorage.getUserData();
+
+        // 2. Safely extract boolean (Default to false if null)
+        final bool isSetupComplete = userData?['SetupComplete'] == true;
         // Use your biometric service to check if phone has fingerprint/FaceID
         // (Assuming you have a biometricService class. If not, just use local_auth here)
         final isHardwareSupported =
@@ -178,6 +205,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           // Hardware hai, par abhi tak na enable kiya hai, na mana kiya hai.
           // Bhejo setup screen par!
           emit(AuthBiometricSetupRequired());
+        } else if (isSetupComplete) {
+          emit(AuthInitialSetupRequired());
         } else {
           // Ya toh phone purana hai, ya user pehle mana kar chuka hai.
           // Seedha Dashboard bhej do!
@@ -190,13 +219,23 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     });
 
     // ---------------------------------------------------------
-    // 6. BIOMETRIC LOGIN
+    // 6. BIOMETRIC LOGIN (Returning User)
     // ---------------------------------------------------------
     on<AuthBiometricLoginRequested>((event, emit) async {
       emit(AuthLoading());
       try {
         await authRepository.biometricLogin();
-        emit(AuthAuthenticated());
+        
+        // 🚨 SDE3 INTERCEPTION: Dashboard jaane se pehle check karo!
+        final userData = await secureStorage.getUserData();
+        final bool isSetupComplete = userData?['SetupComplete'] == true;
+
+        if (!isSetupComplete) {
+          emit(AuthInitialSetupRequired()); // Incomplete profile, go to setup!
+        } else {
+          emit(AuthAuthenticated()); // All good, go to Dashboard!
+        }
+
       } catch (e) {
         // Agar FaceID fail hua ya token rotate fail hua, toh error dikhao
         emit(AuthError(message: "Biometric login failed. Please enter MPIN."));

@@ -12,7 +12,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
-final bool isFirstTime = false;
 
 int _previousIndex = 0;
 
@@ -69,7 +68,7 @@ CustomTransitionPage _buildSmartAnimatedPage(
 final GoRouter appRouter = GoRouter(
   navigatorKey: rootNavigatorKey,
 
-  initialLocation: isFirstTime ? '/setup' : '/splash',
+  initialLocation: '/splash',
 
   routes: [
     /// AUTH SHELL

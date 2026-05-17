@@ -56,7 +56,10 @@ final class AuthMpinRequired extends AuthState {
 /// 7. Intercept before Dashboard: Show Biometric Setup Page
 final class AuthBiometricSetupRequired extends AuthState {}
 
-/// 7.1 Success! (Navigate to Dashboard)
+/// 7.1 Navigation To initial Setup Page
+final class AuthInitialSetupRequired extends AuthState{}
+
+/// 7.2 Success! (Navigate to Dashboard)
 final class AuthAuthenticated extends AuthState {}
 
 
