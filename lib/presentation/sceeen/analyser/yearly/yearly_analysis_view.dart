@@ -47,10 +47,6 @@ class YearlyAnalysisView extends StatelessWidget {
           /// MONTHLY BREAKDOWN
           const MonthlyBreakdownSection(),
 
-          const SizedBox(height: 32),
-
-          /// GOALS
-          // const GoalsProgressSection(),
           const SizedBox(height: 120),
         ],
       ),

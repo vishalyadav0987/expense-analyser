@@ -1,16 +1,29 @@
 import 'dart:async';
 import 'dart:ui';
 
+import 'package:expense_analyser/application/auth/auth_bloc.dart';
+import 'package:expense_analyser/application/auth/auth_event.dart';
+import 'package:expense_analyser/application/auth/auth_state.dart';
 import 'package:expense_analyser/core/constants/app_colors.dart';
 import 'package:expense_analyser/core/constants/app_radius.dart';
 import 'package:expense_analyser/core/constants/app_spacing.dart';
 import 'package:expense_analyser/core/constants/app_text_styles.dart';
 import 'package:expense_analyser/core/constants/responsive.dart';
+import 'package:expense_analyser/core/locator/setup_locator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class MpinScreen extends StatefulWidget {
-  const MpinScreen({super.key});
+  final bool isSetupMode;
+  final String? email;
+  final String? otpAccessToken;
+  const MpinScreen({
+    super.key,
+    required this.isSetupMode,
+    this.email,
+    this.otpAccessToken,
+  });
 
   @override
   State<MpinScreen> createState() => _MpinScreenState();
@@ -26,9 +39,7 @@ class _MpinScreenState extends State<MpinScreen> {
   void _onKeyTap(String value) {
     if (_mpin.length < pinLength) {
       HapticFeedback.lightImpact();
-
       setState(() => _mpin += value);
-
       if (_mpin.length == pinLength) {
         _verifyMpin();
       }
@@ -44,13 +55,15 @@ class _MpinScreenState extends State<MpinScreen> {
   }
 
   Future<void> _verifyMpin() async {
-    setState(() => isLoading = true);
-
-    await Future.delayed(const Duration(seconds: 2));
-
-    setState(() => isLoading = false);
-
-    // Add Navigation Logic here
+    if (widget.isSetupMode) {
+      // Fire Setup Event
+      locator<AuthBloc>().add(
+        AuthSetupMpin(mpin: _mpin, otpAccessToken: widget.otpAccessToken!),
+      );
+    } else {
+      // Fire Login Event
+      locator<AuthBloc>().add(AuthLoginMpin(email: widget.email!, mpin: _mpin));
+    }
   }
 
   @override
@@ -60,43 +73,61 @@ class _MpinScreenState extends State<MpinScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
 
-      body: Stack(
-        children: [
-          // Background Ambient Glows
-          Positioned(
-            top: -100,
-            left: -50,
+      body: BlocConsumer<AuthBloc, AuthState>(
+        bloc: locator<AuthBloc>(),
+        listener: (context, state) {
+          if (state is AuthError) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: Colors.red,
+              ),
+            );
+            // Clear the pin so they can type again
+            setState(() => _mpin = "");
+          }
+        },
+        builder: (context, state) {
+          final isLoading = state is AuthLoading;
+          return Stack(
+            children: [
+              // Background Ambient Glows
+              Positioned(
+                top: -100,
+                left: -50,
 
-            child: _buildGlow(AppColors.primary, 300),
-          ),
+                child: _buildGlow(AppColors.primary, 300),
+              ),
 
-          Positioned(
-            bottom: -50,
-            right: -50,
+              Positioned(
+                bottom: -50,
+                right: -50,
 
-            child: _buildGlow(AppColors.blueGlow, 250),
-          ),
+                child: _buildGlow(AppColors.blueGlow, 250),
+              ),
 
-          SafeArea(
-            child: Column(
-              children: [
-                SizedBox(height: Responsive.h(60)),
+              SafeArea(
+                child: Column(
+                  children: [
+                    SizedBox(height: Responsive.h(60)),
 
-                _buildHeader(),
+                    _buildHeader(),
 
-                const Spacer(),
+                    const Spacer(),
 
-                _buildPinDisplay(),
+                    _buildPinDisplay(),
 
-                const Spacer(),
+                    const Spacer(),
 
-                _buildCustomKeypad(),
-              ],
-            ),
-          ),
+                    _buildCustomKeypad(),
+                  ],
+                ),
+              ),
 
-          if (isLoading) _buildLoadingOverlay(),
-        ],
+              if (isLoading) _buildLoadingOverlay(),
+            ],
+          );
+        },
       ),
     );
   }
@@ -142,9 +173,11 @@ class _MpinScreenState extends State<MpinScreen> {
         SizedBox(height: AppSpacing.sm),
 
         Text(
-          "Enter your MPIN",
+          widget.isSetupMode ? "Setup your MPIN" : "Enter your MPIN",
 
-          style: AppTextStyles.heading2(context).copyWith(fontWeight: FontWeight.bold),
+          style: AppTextStyles.heading2(
+            context,
+          ).copyWith(fontWeight: FontWeight.bold),
         ),
       ],
     );
@@ -193,7 +226,9 @@ class _MpinScreenState extends State<MpinScreen> {
           child: Text(
             isFilled ? "•" : "",
 
-            style: AppTextStyles.heading1(context).copyWith(color: AppColors.primary),
+            style: AppTextStyles.heading1(
+              context,
+            ).copyWith(color: AppColors.primary),
           ),
         );
       }),
@@ -273,9 +308,9 @@ class _MpinScreenState extends State<MpinScreen> {
             : Text(
                 val,
 
-                style: AppTextStyles.heading3(context).copyWith(
-                  fontWeight: FontWeight.w500,
-                ),
+                style: AppTextStyles.heading3(
+                  context,
+                ).copyWith(fontWeight: FontWeight.w500),
               ),
       ),
     );
@@ -307,7 +342,7 @@ class _MpinScreenState extends State<MpinScreen> {
       filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
 
       child: Container(
-        color: Colors.black,
+        color: Colors.black.withValues(alpha: 0.5),
 
         child: const Center(
           child: CircularProgressIndicator(color: AppColors.primary),
