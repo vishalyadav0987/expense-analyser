@@ -1,4 +1,8 @@
 import 'dart:ui';
+import 'package:expense_analyser/application/auth/auth_bloc.dart';
+import 'package:expense_analyser/application/auth/auth_event.dart';
+import 'package:expense_analyser/core/constants/app_spacing.dart';
+import 'package:expense_analyser/core/locator/setup_locator.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_colors.dart';
@@ -76,7 +80,9 @@ class UniversalHeader extends StatelessWidget implements PreferredSizeWidget {
               Row(
                 children: [
                   GestureDetector(
-                    onTap: onNotificationTap,
+                    onTap: () {
+                      locator<AuthBloc>().add(AuthLogoutRequested());
+                    },
                     child: Container(
                       width: 40,
                       height: 40,
@@ -91,6 +97,7 @@ class UniversalHeader extends StatelessWidget implements PreferredSizeWidget {
                       ),
                     ),
                   ),
+                  SizedBox(width: AppSpacing.sm),
                   Stack(
                     children: [
                       GestureDetector(

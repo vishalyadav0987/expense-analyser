@@ -14,6 +14,58 @@ import 'package:go_router/go_router.dart';
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 final bool isFirstTime = false;
 
+int _previousIndex = 0;
+
+int _getRouteIndex(String location) {
+  if (location.startsWith('/dashboard')) return 0;
+  if (location.startsWith('/add-expense')) return 1;
+  if (location.startsWith('/analyser')) return 2;
+  return 0;
+}
+
+CustomTransitionPage _buildSmartAnimatedPage(
+  BuildContext context,
+  GoRouterState state,
+  Widget child,
+) {
+  // 1. Pata karo abhi kis tab par jaa rahe hain
+  final newIndex = _getRouteIndex(state.uri.toString());
+
+  // 2. Logic: Agar naya index purane se bada hai, matlab hum Right jaa rahe hain.
+  // Agar chota hai, matlab hum wapas Left aarahe hain!
+  final isMovingRight = newIndex > _previousIndex;
+
+  // 3. Agli baar ke liye yaad rakho
+  _previousIndex = newIndex;
+
+  return CustomTransitionPage(
+    key: ValueKey('${state.pageKey.value}_${state.uri.toString()}'),
+    child: child,
+    transitionDuration: const Duration(milliseconds: 350), // Smooth duration
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      // Calculate Starting Position
+      // isMovingRight == true -> Screen Right (1.0) se aayegi
+      // isMovingRight == false -> Screen Left (-1.0) se aayegi
+      final begin = Offset(isMovingRight ? 1.0 : -1.0, 0.0);
+      const end = Offset.zero;
+
+      // Premium iOS style curve (bounce ya linear nahi, smooth easeInOut)
+      const curve = Curves.easeInOutCubic;
+
+      final tween = Tween(
+        begin: begin,
+        end: end,
+      ).chain(CurveTween(curve: curve));
+
+      return SlideTransition(
+        position: animation.drive(tween),
+        // Ek halka sa fade effect add kiya hai, Glassmorphism UI par kamaal lagta hai!
+        child: FadeTransition(opacity: animation, child: child),
+      );
+    },
+  );
+}
+
 final GoRouter appRouter = GoRouter(
   navigatorKey: rootNavigatorKey,
 
@@ -88,23 +140,20 @@ final GoRouter appRouter = GoRouter(
       routes: [
         GoRoute(
           path: '/dashboard',
-          builder: (context, state) {
-            return const DashboardScreen();
-          },
+          pageBuilder: (context, state) =>
+              _buildSmartAnimatedPage(context, state, const DashboardScreen()),
         ),
 
         GoRoute(
           path: '/add-expense',
-          builder: (context, state) {
-            return const AddExpenseScreen();
-          },
+          pageBuilder: (context, state) =>
+              _buildSmartAnimatedPage(context, state, const AddExpenseScreen()),
         ),
 
         GoRoute(
           path: '/analyser',
-          builder: (context, state) {
-            return const AnalyserScreen();
-          },
+          pageBuilder: (context, state) =>
+              _buildSmartAnimatedPage(context, state, const AnalyserScreen()),
         ),
       ],
     ),
