@@ -13,16 +13,19 @@ import 'package:expense_analyser/core/locator/setup_locator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:local_auth/local_auth.dart';
 
 class MpinScreen extends StatefulWidget {
   final bool isSetupMode;
   final String? email;
   final String? otpAccessToken;
+  final bool? showBiometricPrompt;
   const MpinScreen({
     super.key,
     required this.isSetupMode,
     this.email,
     this.otpAccessToken,
+    this.showBiometricPrompt = true,
   });
 
   @override
@@ -35,6 +38,42 @@ class _MpinScreenState extends State<MpinScreen> {
   String _mpin = "";
 
   bool isLoading = false;
+  final LocalAuthentication _localAuth = LocalAuthentication();
+
+  @override
+  void initState() {
+    super.initState();
+
+    // 🚨 SDE3 UX TRICK: Auto-trigger biometric after UI renders
+    if (widget.showBiometricPrompt ?? false) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // Chota sa delay UX smooth banata hai
+        Future.delayed(const Duration(milliseconds: 300), () {
+          _triggerBiometricLogin();
+        });
+      });
+    }
+  }
+
+  Future<void> _triggerBiometricLogin() async {
+    try {
+      final bool authenticated = await _localAuth.authenticate(
+        localizedReason: "Unlock Expense Analyser",
+        biometricOnly: true,
+      );
+
+      if (authenticated) {
+        // Success! BLoC ko bolo login API call kare aur token rotate kare
+        if (mounted) {
+          locator<AuthBloc>().add(const AuthBiometricLoginRequested());
+        }
+      }
+      // Agar fail hua ya user ne cancel kiya, toh kuch mat karo.
+      // OS prompt hat jayega aur user apna 4-digit MPIN manual type kar payega (Fallback).
+    } catch (e) {
+      debugPrint("Biometric error: $e");
+    }
+  }
 
   void _onKeyTap(String value) {
     if (_mpin.length < pinLength) {
@@ -68,6 +107,7 @@ class _MpinScreenState extends State<MpinScreen> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint("Show Boimetric: ${widget.showBiometricPrompt}");
     Responsive.init(context);
 
     return Scaffold(
@@ -136,23 +176,28 @@ class _MpinScreenState extends State<MpinScreen> {
     return Column(
       children: [
         // Security Icon with Glass Plate
-        Container(
-          padding: EdgeInsets.all(AppSpacing.lg),
+        GestureDetector(
+          onTap: () {
+            locator<AuthBloc>().add(AuthLogoutRequested());
+          },
+          child: Container(
+            padding: EdgeInsets.all(AppSpacing.lg),
 
-          decoration: BoxDecoration(
-            color: AppColors.cardBackground.withOpacity(0.5),
+            decoration: BoxDecoration(
+              color: AppColors.cardBackground.withOpacity(0.5),
 
-            borderRadius: BorderRadius.circular(AppRadius.xl),
+              borderRadius: BorderRadius.circular(AppRadius.xl),
 
-            border: Border.all(color: AppColors.border),
-          ),
+              border: Border.all(color: AppColors.border),
+            ),
 
-          child: const Icon(
-            Icons.fingerprint,
+            child: const Icon(
+              Icons.fingerprint,
 
-            color: AppColors.primary,
+              color: AppColors.primary,
 
-            size: 40,
+              size: 40,
+            ),
           ),
         ),
 
@@ -281,11 +326,17 @@ class _MpinScreenState extends State<MpinScreen> {
                 "9",
               ].map((n) => _keyBtn(n)),
 
-              _keyBtn("forget", isIcon: true, icon: Icons.help_outline),
+              widget.isSetupMode
+                  ? const SizedBox.shrink()
+                  : _keyBtn(
+                      "bio",
+                      isIcon: true,
+                      icon: Icons.fingerprint_rounded,
+                    ),
 
               _keyBtn("0"),
 
-              _keyBtn("back", isIcon: true, icon: Icons.backspace_outlined),
+              _keyBtn("forget", isIcon: true, icon: Icons.arrow_back),
             ],
           ),
         ),
@@ -295,8 +346,15 @@ class _MpinScreenState extends State<MpinScreen> {
 
   Widget _keyBtn(String val, {bool isIcon = false, IconData? icon}) {
     return InkWell(
-      onTap: () =>
-          isIcon ? (val == "back" ? _onBackspace() : null) : _onKeyTap(val),
+      onTap: () {
+        if (val == "forget") {
+          _onBackspace();
+        } else if (val == "bio") {
+          _triggerBiometricLogin(); // 🚨 Manual Trigger
+        } else {
+          _onKeyTap(val);
+        }
+      },
 
       borderRadius: BorderRadius.circular(AppRadius.lg),
 

@@ -53,8 +53,12 @@ final class AuthMpinRequired extends AuthState {
   List<Object?> get props => [showBiometricPrompt, email];
 }
 
-/// 7. Success! (Navigate to Dashboard)
+/// 7. Intercept before Dashboard: Show Biometric Setup Page
+final class AuthBiometricSetupRequired extends AuthState {}
+
+/// 7.1 Success! (Navigate to Dashboard)
 final class AuthAuthenticated extends AuthState {}
+
 
 /// 8. Something went wrong (Show Snackbar/Dialog)
 final class AuthError extends AuthState {

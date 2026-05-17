@@ -11,6 +11,8 @@ class SecureStorageService {
   static const String _refreshTokenKey = 'refresh_token';
   static const String _isNewUser = 'isNewUser';
   static const String _userDataKey = 'user_data';
+  static const String _biometricOptOutKey = 'biometric_opt_out';
+  static const String _biometricEnabledKey = 'biometric_enabled';
   // static const String _deviceIdKey = 'device_id';
 
   // Save Tokens
@@ -66,6 +68,29 @@ class SecureStorageService {
       return userData['SetupComplete'] == true;
     }
     return false;
+  }
+
+  // ---------------------------------------------------------
+  // 🫆 Biometric Setup
+  // ---------------------------------------------------------
+
+  Future<void> setBiometricOptOut(bool value) async {
+    await _storage.write(key: _biometricOptOutKey, value: value.toString());
+  }
+
+  Future<bool> hasBiometricOptedOut() async {
+    final val = await _storage.read(key: _biometricOptOutKey);
+    return val == 'true';
+  }
+
+  // 2. Opt-in (User successfully scanned fingerprint)
+  Future<void> setBiometricEnabled(bool value) async {
+    await _storage.write(key: _biometricEnabledKey, value: value.toString());
+  }
+
+  Future<bool> isBiometricEnabled() async {
+    final val = await _storage.read(key: _biometricEnabledKey);
+    return val == 'true';
   }
 
   // Clear Vault (Kill Switch / Logout)

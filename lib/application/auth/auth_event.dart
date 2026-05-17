@@ -67,3 +67,13 @@ final class AuthBiometricLoginRequested extends AuthEvent {
 final class AuthLogoutRequested extends AuthEvent {
   const AuthLogoutRequested();
 }
+
+/// Fired when user taps "Do it later"
+final class AuthSkipBiometricSetup extends AuthEvent {
+  const AuthSkipBiometricSetup();
+}
+
+/// Fired when user taps "Enable" and successfully scans fingerprint
+final class AuthEnableBiometricSetup extends AuthEvent {
+  const AuthEnableBiometricSetup();
+}

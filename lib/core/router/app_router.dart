@@ -64,6 +64,7 @@ final GoRouter appRouter = GoRouter(
               isSetupMode: args['isSetupMode'] ?? false,
               email: args['email'],
               otpAccessToken: args['otpAccessToken'],
+              showBiometricPrompt: args['showBiometricPrompt'] ?? false,
             );
           },
         ),

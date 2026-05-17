@@ -73,7 +73,7 @@ class UniversalHeader extends StatelessWidget implements PreferredSizeWidget {
               ),
 
               // NOTIFICATION ONLY
-              Stack(
+              Row(
                 children: [
                   GestureDetector(
                     onTap: onNotificationTap,
@@ -85,26 +85,46 @@ class UniversalHeader extends StatelessWidget implements PreferredSizeWidget {
                         color: Colors.white.withOpacity(0.04),
                       ),
                       child: const Icon(
-                        Icons.notifications_none_rounded,
+                        Icons.logout,
                         color: AppColors.textSecondary,
                         size: 22,
                       ),
                     ),
                   ),
-
-                  if (showNotificationBadge)
-                    Positioned(
-                      top: 7,
-                      right: 7,
-                      child: Container(
-                        width: 7,
-                        height: 7,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppColors.primary,
+                  Stack(
+                    children: [
+                      GestureDetector(
+                        onTap: onNotificationTap,
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white.withOpacity(0.04),
+                          ),
+                          child: const Icon(
+                            Icons.notifications_none_rounded,
+                            color: AppColors.textSecondary,
+                            size: 22,
+                          ),
                         ),
                       ),
-                    ),
+
+                      if (showNotificationBadge)
+                        Positioned(
+                          top: 7,
+                          right: 7,
+                          child: Container(
+                            width: 7,
+                            height: 7,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ],
               ),
             ],

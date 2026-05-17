@@ -1,6 +1,5 @@
 import 'package:expense_analyser/application/auth/auth_event.dart';
 import 'package:expense_analyser/application/auth/auth_state.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../data/datasources/local/storage/secure_storage_service.dart';
@@ -41,12 +40,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         }
 
         // Sab sahi hai! MPIN screen par bhejo.
-        // (Yahan showBiometricPrompt: true kar sakte ho agar hardware checking lagai hai)
+        final hasBiometricEnabled = await secureStorage.isBiometricEnabled();
+
         emit(
           AuthMpinRequired(
             email: email,
             showBiometricPrompt:
-                false, // Optional: Update this based on biometric settings
+                hasBiometricEnabled, // Optional: Update this based on biometric settings
           ),
         );
       } catch (e) {
@@ -106,22 +106,56 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     });
 
     // ---------------------------------------------------------
-    // 4. SETUP MPIN (New User)
+    // 4. SETUP MPIN (Interception Logic Added)
     // ---------------------------------------------------------
     on<AuthSetupMpin>((event, emit) async {
       emit(AuthLoading());
       try {
-        debugPrint("OTP ACCESS TOKEN: ${event.otpAccessToken} ${event.mpin}");
-        // Temporary token pass karo Repo ko
         await authRepository.setupMpin(event.mpin, event.otpAccessToken);
 
-        // Permanent tokens aur UserData save ho gaya! Dashboard bhejo!
-        emit(AuthAuthenticated());
+        // 🚨 SDE3 INTERCEPTION: Dashboard bhejne se pehle check karo 🚨
+        final hasOptedOut = await secureStorage.hasBiometricOptedOut();
+        final hasEnabled = await secureStorage.isBiometricEnabled();
+
+        // Use your biometric service to check if phone has fingerprint/FaceID
+        // (Assuming you have a biometricService class. If not, just use local_auth here)
+        final isHardwareSupported =
+            true; // Replace with: await biometricService.isHardwareSupported();
+
+        if (!hasOptedOut && !hasEnabled && isHardwareSupported) {
+          // Hardware hai, par abhi tak na enable kiya hai, na mana kiya hai.
+          // Bhejo setup screen par!
+          emit(AuthBiometricSetupRequired());
+        } else {
+          // Ya toh phone purana hai, ya user pehle mana kar chuka hai.
+          // Seedha Dashboard bhej do!
+          emit(AuthAuthenticated());
+        }
       } catch (e) {
         emit(AuthError(message: _handleError(e)));
-        // Failed? Wapas MPIN setup par rakho with the SAME temporary token
         emit(AuthMpinSetupRequired(otpAccessToken: event.otpAccessToken));
       }
+    });
+
+    // ---------------------------------------------------------
+    // NEW: HANDLE "DO IT LATER"
+    // ---------------------------------------------------------
+    on<AuthSkipBiometricSetup>((event, emit) async {
+      emit(AuthLoading()); // Thodi der spinner dikhao
+      // Flag save karo taaki zindagi mein dobara ye screen na aaye
+      await secureStorage.setBiometricOptOut(true);
+      emit(AuthAuthenticated()); // Chalo Dashboard!
+    });
+
+    // ---------------------------------------------------------
+    // NEW: HANDLE "ENABLE BIOMETRIC"
+    // ---------------------------------------------------------
+    on<AuthEnableBiometricSetup>((event, emit) async {
+      // Logic: Biometric success UI handle karega (taaki green tick animation chal sake).
+      // BLoC ko bas flag save karna hai.
+      emit(AuthLoading());
+      await secureStorage.setBiometricEnabled(true);
+      emit(AuthAuthenticated());
     });
 
     // ---------------------------------------------------------
@@ -131,7 +165,24 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(AuthLoading());
       try {
         await authRepository.loginMpin(event.email, event.mpin);
-        emit(AuthAuthenticated());
+        // 🚨 SDE3 INTERCEPTION: Dashboard bhejne se pehle check karo 🚨
+        final hasOptedOut = await secureStorage.hasBiometricOptedOut();
+        final hasEnabled = await secureStorage.isBiometricEnabled();
+
+        // Use your biometric service to check if phone has fingerprint/FaceID
+        // (Assuming you have a biometricService class. If not, just use local_auth here)
+        final isHardwareSupported =
+            true; // Replace with: await biometricService.isHardwareSupported();
+
+        if (!hasOptedOut && !hasEnabled && isHardwareSupported) {
+          // Hardware hai, par abhi tak na enable kiya hai, na mana kiya hai.
+          // Bhejo setup screen par!
+          emit(AuthBiometricSetupRequired());
+        } else {
+          // Ya toh phone purana hai, ya user pehle mana kar chuka hai.
+          // Seedha Dashboard bhej do!
+          emit(AuthAuthenticated());
+        }
       } catch (e) {
         emit(AuthError(message: _handleError(e)));
         emit(AuthMpinRequired(email: event.email, showBiometricPrompt: false));

@@ -57,13 +57,19 @@ class MyApp extends StatelessWidget {
               else if (state is AuthMpinRequired) {
                 appRouter.go(
                   '/mpin',
-                  extra: {'isSetupMode': false, 'email': state.email},
+                  extra: {
+                    'isSetupMode': false,
+                    'email': state.email,
+                    'showBiometricPrompt': state.showBiometricPrompt,
+                  },
                 );
               }
               // 6. Fully Authenticated -> Go to Dashboard!
+              else if (state is AuthBiometricSetupRequired) {
+                appRouter.go('/biometric-setup');
+              }
+              // 8. Fully Authenticated
               else if (state is AuthAuthenticated) {
-                // Yahan tu check lag sakta hai ki agar isFirstTime hai toh
-                // /setup ya /biometric-setup par bheje. Abhi ke liye seedha dashboard:
                 appRouter.go('/dashboard');
               }
             },
