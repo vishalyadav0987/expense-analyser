@@ -9,6 +9,9 @@ class ApiEndpoints {
   static const String loginMpin = '$baseUrl/auth/mpin-login';
   static const String biometricLogin = '$baseUrl/auth/biometric-login';
 
+  // Initial Setup
+  static const String initialSetup = '$baseUrl/user/setup';
+
   // Expense Routes
   static const String expenses = '$baseUrl/expenses';
 

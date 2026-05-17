@@ -4,7 +4,8 @@ import 'package:expense_analyser/presentation/sceeen/dashboard/widgets/glass_car
 import 'package:flutter/material.dart';
 
 class BudgetRuleSelector extends StatefulWidget {
-  const BudgetRuleSelector({super.key});
+  final Function(double needs, double wants, double savings) onChanged;
+  const BudgetRuleSelector({super.key, required this.onChanged});
 
   @override
   State<BudgetRuleSelector> createState() => _BudgetRuleSelectorState();
@@ -15,6 +16,10 @@ class _BudgetRuleSelectorState extends State<BudgetRuleSelector> {
   double needs = 50;
   double wants = 30;
   double savings = 20;
+
+  void _notifyParent() {
+    widget.onChanged(needs, wants, savings);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +50,18 @@ class _BudgetRuleSelectorState extends State<BudgetRuleSelector> {
               Switch.adaptive(
                 value: isCustom,
                 activeColor: AppColors.primary,
-                onChanged: (val) => setState(() => isCustom = val),
+                onChanged: (val) {
+                  setState(() {
+                    isCustom = val;
+                    if (!isCustom) {
+                      // Reset to default 50/30/20 if turned off
+                      needs = 50;
+                      wants = 30;
+                      savings = 20;
+                      _notifyParent();
+                    }
+                  });
+                },
               ),
             ],
           ),

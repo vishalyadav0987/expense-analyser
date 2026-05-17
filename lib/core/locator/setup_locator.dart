@@ -1,11 +1,16 @@
 import 'dart:io'; // To check platform
 import 'package:dio/dio.dart';
 import 'package:expense_analyser/application/auth/auth_bloc.dart';
+import 'package:expense_analyser/application/setup/setup_bloc.dart';
 import 'package:expense_analyser/core/constants/api_endpoints.dart';
+import 'package:expense_analyser/data/datasources/local/database/app_database.dart';
 import 'package:expense_analyser/data/datasources/local/storage/secure_storage_service.dart';
 import 'package:expense_analyser/data/datasources/remote/auth_api_service.dart';
+import 'package:expense_analyser/data/datasources/remote/setup_api_service.dart';
 import 'package:expense_analyser/data/repositories/auth_repository_impl.dart';
+import 'package:expense_analyser/data/repositories/setup_repository_impl.dart';
 import 'package:expense_analyser/domain/repositories/auth_repository.dart';
+import 'package:expense_analyser/domain/repositories/setup_repository.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
 
@@ -29,6 +34,12 @@ void setupAppServices() {
   );
   locator.registerLazySingleton<SecureStorageService>(
     () => SecureStorageService(locator<FlutterSecureStorage>()),
+  );
+
+  locator.registerLazySingleton<AppDatabase>(() => AppDatabase.instance);
+
+  locator.registerLazySingleton<SetupApiService>(
+    () => SetupApiService(dio: locator<Dio>()),
   );
 
   // Register Network Client (Dio)
@@ -64,6 +75,14 @@ void setupAppRepos() {
       secureStorage: locator<SecureStorageService>(),
     ),
   );
+
+  locator.registerLazySingleton<SetupRepository>(
+    () => SetupRepositoryImpl(
+      remoteDataSource: locator<SetupApiService>(),
+      appDatabase: locator<AppDatabase>(),
+      secureStorage: locator<SecureStorageService>(),
+    ),
+  );
 }
 
 void setupAppBlocs() {
@@ -73,5 +92,9 @@ void setupAppBlocs() {
       authRepository: locator<AuthRepository>(),
       secureStorage: locator<SecureStorageService>(),
     ),
+  );
+
+  locator.registerLazySingleton<SetupBloc>(
+    () => SetupBloc(setupRepository: locator<SetupRepository>()),
   );
 }

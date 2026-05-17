@@ -1,12 +1,19 @@
+import 'package:expense_analyser/application/auth/auth_bloc.dart';
+import 'package:expense_analyser/application/auth/auth_event.dart';
+import 'package:expense_analyser/application/setup/setup_bloc.dart';
+import 'package:expense_analyser/application/setup/setup_event.dart';
+import 'package:expense_analyser/application/setup/setup_state.dart';
 import 'package:expense_analyser/core/constants/app_colors.dart';
 import 'package:expense_analyser/core/constants/app_spacing.dart';
 import 'package:expense_analyser/core/constants/app_text_styles.dart';
 import 'package:expense_analyser/core/constants/responsive.dart';
+import 'package:expense_analyser/core/locator/setup_locator.dart';
+import 'package:expense_analyser/domain/models/request/initial_setup_request.dart';
 import 'package:expense_analyser/presentation/sceeen/dashboard/widgets/glass_card.dart';
 import 'package:expense_analyser/presentation/sceeen/initalScreen/widgets/budget_rule_selector.dart';
 import 'package:expense_analyser/presentation/sceeen/initalScreen/widgets/payment_mode_selector.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class InitialSetupScreen extends StatefulWidget {
   const InitialSetupScreen({super.key});
@@ -21,6 +28,10 @@ class _InitialSetupScreenState extends State<InitialSetupScreen> {
   final TextEditingController _growthController = TextEditingController();
   final TextEditingController _weeklyLimitController = TextEditingController();
 
+  double _needs = 50;
+  double _wants = 30;
+  double _savings = 20;
+
   // Initialize modes and default to ALL selected
   final List<String> _categoryModes = [
     "Life Infrastructure (Need)",
@@ -31,7 +42,7 @@ class _InitialSetupScreenState extends State<InitialSetupScreen> {
   ];
   late final Set<String> _selectedCategories = Set.from(_categoryModes);
 
-  final List<String> _paymentModes = ["UPI", "Bank", "Cash", "Credit"];
+  final List<String> _paymentModes = ["Cash", "Debit Card", "Credit Card", "Upi","Bank"];
   late final Set<String> _selectedPaymentModes = Set.from(_paymentModes);
 
   @override
@@ -40,6 +51,62 @@ class _InitialSetupScreenState extends State<InitialSetupScreen> {
     _growthController.dispose();
     _weeklyLimitController.dispose();
     super.dispose();
+  }
+
+  void _submitSetup() {
+    // 1. Safe parsing of text inputs
+    final double salary = double.tryParse(_salaryController.text) ?? 0.0;
+    final double growth =
+        double.tryParse(_growthController.text.replaceAll('%', '')) ?? 0.0;
+    final double weeklyLimit =
+        double.tryParse(_weeklyLimitController.text) ?? 0.0;
+
+    // 2. Parse Categories (String to Model)
+    // Extracting "Life Infrastructure" and "Need" from "Life Infrastructure (Need)"
+    final List<CategoryReq> parsedCategories = _selectedCategories.map((
+      catString,
+    ) {
+      if (catString.contains('(') && catString.contains(')')) {
+        final parts = catString.split('(');
+        return CategoryReq(
+          name: parts[0].trim(),
+          type: parts[1].replaceAll(')', '').trim(),
+        );
+      }
+      return CategoryReq(name: catString, type: "Unknown");
+    }).toList();
+
+    // 3. Parse Payment Methods
+    final List<PaymentMethodReq> parsedPayments = _selectedPaymentModes.map((
+      method,
+    ) {
+      return PaymentMethodReq(
+        methodName: method,
+        weeklyLimit: 0.0, // Default limit, user can edit later
+        isActive: true,
+      );
+    }).toList();
+
+    // 4. Construct Request Model
+    final requestPayload = InitialSetupRequest(
+      financials: FinancialsReq(
+        monthlySalary: salary,
+        yearlyHikePercentage: growth,
+        xxWeeklyLimit: weeklyLimit,
+      ),
+      smartRules: SmartRulesReq(
+        needsPercentage: _needs.toInt(),
+        wantsPercentage: _wants.toInt(),
+        savingsPercentage: _savings.toInt(),
+      ),
+      categories: parsedCategories,
+      paymentMethods: parsedPayments,
+    );
+
+    // 5. Fire Event to BLoC!
+    locator<SetupBloc>().add(
+      SubmitInitialSetupEvent(requestPayload: requestPayload),
+    );
   }
 
   void _showSummaryDialog() {
@@ -120,7 +187,10 @@ class _InitialSetupScreenState extends State<InitialSetupScreen> {
                         ),
                       ),
                     ),
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () {
+                      Navigator.pop(context); // Close dialog
+                      _submitSetup(); // 🚨 Trigger API/DB!
+                    },
                     child: Text(
                       "Activate",
                       style: TextStyle(color: AppColors.background),
@@ -162,104 +232,143 @@ class _InitialSetupScreenState extends State<InitialSetupScreen> {
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         backgroundColor: AppColors.background,
-        body: Stack(
-          children: [
-            // Ambient Glow Background
-            Positioned(
-              top: -100,
-              left: -50,
-              child: _ambientGlow(AppColors.primary),
-            ),
-            Positioned(
-              bottom: 50,
-              right: -50,
-              child: _ambientGlow(AppColors.blueGlow),
-            ),
+        body: BlocConsumer<SetupBloc, SetupState>(
+          bloc: locator<SetupBloc>(),
+          listener: (context, state) {
+            if (state is SetupError) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(state.message),
+                  backgroundColor: Colors.redAccent,
+                ),
+              );
+            }
+            if (state is SetupSuccess) {
+              // 🚨 SDE3 MASTERSTROKE: Ask AuthBloc to re-check Vault.
+              // AuthBloc will find SetupComplete = true and route to Dashboard automatically!
+              locator<AuthBloc>().add(const AuthAppStarted());
+            }
+          },
+          builder: (context, state) {
+            final isLoading = state is SetupLoading;
+            return Stack(
+              children: [
+                // Ambient Glow Background
+                Positioned(
+                  top: -100,
+                  left: -50,
+                  child: _ambientGlow(AppColors.primary),
+                ),
+                Positioned(
+                  bottom: 50,
+                  right: -50,
+                  child: _ambientGlow(AppColors.blueGlow),
+                ),
 
-            SafeArea(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.all(AppSpacing.lg),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Column(
+                SafeArea(
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.all(AppSpacing.lg),
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          "INITIALIZE RULES",
-                          style: AppTextStyles.heading1(context),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "INITIALIZE RULES",
+                              style: AppTextStyles.heading1(context),
+                            ),
+                            Text(
+                              "Configure your financial engine",
+                              style: AppTextStyles.bodySmall(context),
+                            ),
+                          ],
                         ),
-                        Text(
-                          "Configure your financial engine",
-                          style: AppTextStyles.bodySmall(context),
+
+                        const SizedBox(height: 24),
+
+                        // 1. SALARY & GROWTH & WEEKLY LIMIT
+                        _buildSectionTitle("Income Engine"),
+                        GlassCard(
+                          child: Column(
+                            children: [
+                              _customInputField(
+                                "Enter Monthly Salary",
+                                "₹0.00",
+                                Icons.account_balance_wallet,
+                                _salaryController,
+                              ),
+                              const Divider(color: AppColors.white),
+                              _customInputField(
+                                "Est. Yearly Growth (%)",
+                                "5%",
+                                Icons.trending_up,
+                                _growthController,
+                              ),
+                              const Divider(color: AppColors.white),
+                              // Added Weekly Limit Field
+                              _customInputField(
+                                "Weekly Limit",
+                                "₹0.00",
+                                Icons.account_balance_wallet,
+                                _weeklyLimitController,
+                              ),
+                            ],
+                          ),
                         ),
+
+                        const SizedBox(height: 24),
+
+                        // 2. BUDGETING RULE (50/30/20 or Custom)
+                        _buildSectionTitle("Allocation Logic"),
+                        BudgetRuleSelector(
+                          onChanged: (n, w, s) {
+                            setState(() {
+                              _needs = n;
+                              _wants = w;
+                              _savings = s;
+                            });
+                          },
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // 3. TAGS & CATEGORIES
+                        _buildSectionTitle("Classification Tags"),
+                        PaymentModeSelector(
+                          modes: _categoryModes,
+                          selected: _selectedCategories,
+                          bottomSheetHeading: "Add Custom Category",
+                          title: "Category",
+                          showTypeTags:
+                              true, // Enables the Need/Want/Saving selection
+                        ),
+                        const SizedBox(height: 12),
+                        PaymentModeSelector(
+                          modes: _paymentModes,
+                          selected: _selectedPaymentModes,
+                          bottomSheetHeading: "Add Custom Payment Mode",
+                          showTypeTags: false, // Hidden for Payment modes
+                        ),
+
+                        const SizedBox(height: 24),
                       ],
                     ),
+                  ),
+                ),
 
-                    const SizedBox(height: 24),
-
-                    // 1. SALARY & GROWTH & WEEKLY LIMIT
-                    _buildSectionTitle("Income Engine"),
-                    GlassCard(
-                      child: Column(
-                        children: [
-                          _customInputField(
-                            "Enter Monthly Salary",
-                            "₹0.00",
-                            Icons.account_balance_wallet,
-                            _salaryController,
-                          ),
-                          const Divider(color: AppColors.white),
-                          _customInputField(
-                            "Est. Yearly Growth (%)",
-                            "5%",
-                            Icons.trending_up,
-                            _growthController,
-                          ),
-                          const Divider(color: AppColors.white),
-                          // Added Weekly Limit Field
-                          _customInputField(
-                            "Weekly Limit",
-                            "₹0.00",
-                            Icons.account_balance_wallet,
-                            _weeklyLimitController,
-                          ),
-                        ],
+                if (isLoading)
+                  Container(
+                    color: Colors.black.withOpacity(0.5),
+                    child: const Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.primary,
                       ),
                     ),
-
-                    const SizedBox(height: 24),
-
-                    // 2. BUDGETING RULE (50/30/20 or Custom)
-                    _buildSectionTitle("Allocation Logic"),
-                    const BudgetRuleSelector(),
-
-                    const SizedBox(height: 24),
-
-                    // 3. TAGS & CATEGORIES
-                    _buildSectionTitle("Classification Tags"),
-                    PaymentModeSelector(
-                      modes: _categoryModes,
-                      selected: _selectedCategories,
-                      bottomSheetHeading: "Add Custom Category",
-                      title: "Category",
-                      showTypeTags:
-                          true, // Enables the Need/Want/Saving selection
-                    ),
-                    const SizedBox(height: 12),
-                    PaymentModeSelector(
-                      modes: _paymentModes,
-                      selected: _selectedPaymentModes,
-                      bottomSheetHeading: "Add Custom Payment Mode",
-                      showTypeTags: false, // Hidden for Payment modes
-                    ),
-
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ),
-            ),
-          ],
+                  ),
+              ],
+            );
+          },
         ),
         bottomNavigationBar: Container(
           decoration: BoxDecoration(
@@ -324,7 +433,7 @@ class _InitialSetupScreenState extends State<InitialSetupScreen> {
                         ),
                         elevation: 0,
                       ),
-                      onPressed: () => context.go('/dashboard'),
+                      onPressed: () => {_submitSetup()},
                       child: Text(
                         "ACTIVATE",
                         style: AppTextStyles.button(
