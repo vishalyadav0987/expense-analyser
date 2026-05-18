@@ -17,7 +17,12 @@ class AppDatabase {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 
-    return await openDatabase(path, version: 1, onCreate: _createDB);
+    return await openDatabase(
+      path,
+      version: 2,
+      onCreate: _createDB,
+      onUpgrade: _upgradeDB,
+    );
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -54,7 +59,36 @@ class AppDatabase {
         is_active INTEGER NOT NULL
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE transactions (
+        id TEXT PRIMARY KEY,
+        category_id TEXT NOT NULL,
+        amount REAL NOT NULL,
+        description TEXT,
+        payment_mode TEXT NOT NULL,
+        date TEXT NOT NULL,
+        created_at TEXT
+      )
+    ''');
   }
+
+  Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // Agar user version 1 se aa raha hai, toh sirf nayi table bana do
+      await db.execute('''
+        CREATE TABLE transactions (
+          id TEXT PRIMARY KEY,
+          category_id TEXT NOT NULL,
+          amount REAL NOT NULL,
+          description TEXT,
+          payment_mode TEXT NOT NULL,
+          date TEXT NOT NULL,
+          created_at TEXT
+        )
+      ''');
+    }
+  } // 🚨 YAHAN EK BRACKET MISSING THA! (Closes _upgradeDB)
 
   Future<void> close() async {
     final db = await instance.database;

@@ -1,6 +1,10 @@
+import 'package:expense_analyser/application/expense/expense_bloc.dart';
+import 'package:expense_analyser/application/expense/expense_event.dart';
 import 'package:expense_analyser/core/constants/app_colors.dart';
 import 'package:expense_analyser/core/constants/app_spacing.dart';
 import 'package:expense_analyser/core/constants/app_text_styles.dart';
+import 'package:expense_analyser/core/locator/setup_locator.dart';
+import 'package:expense_analyser/domain/models/request/create_category_request.dart';
 import 'package:expense_analyser/presentation/sceeen/addExpense/widgets/category_selector.dart';
 import 'package:flutter/material.dart';
 
@@ -28,18 +32,25 @@ class _CategorizedTypeSelectorState extends State<CategorizedTypeSelector> {
     if (value.isEmpty) return;
 
     setState(() {
-      // Ensure the list exists, add the value
+      // 1. 🚨 OPTIMISTIC UI UPDATE: Ensure the list exists, add the value locally
       final list = List<String>.from(widget.categories[tag] ?? []);
       if (!list.contains(value)) {
         list.add(value);
         widget.categories[tag] = list;
       }
 
-      // Select the newly created category (single select logic for categories usually)
+      // 2. 🚨 AUTO-SELECT: Select the newly created category instantly
       widget.selected.clear();
       widget.selected.add(value);
       _activeTab = tag; // Switch tab to show the new item
     });
+
+    // 3. 🚨 BACKGROUND SYNC: Fire Event to BLoC to save in Backend & SQLite
+    locator<ExpenseBloc>().add(
+      SubmitCreateCategoryEvent(
+        requestPayload: CreateCategoryRequest(name: value, type: tag),
+      ),
+    );
   }
 
   void _openAddSheet() {
@@ -228,7 +239,9 @@ class _CategorizedTypeSelectorState extends State<CategorizedTypeSelector> {
                     color: isActive ? AppColors.glass : Colors.transparent,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: isActive ? AppColors.primary : AppColors.textSecondary.withValues(alpha: 0.4),
+                      color: isActive
+                          ? AppColors.primary
+                          : AppColors.textSecondary.withValues(alpha: 0.4),
                     ),
                   ),
                   alignment: Alignment.center,
