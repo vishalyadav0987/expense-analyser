@@ -19,7 +19,7 @@ class AppDatabase {
 
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -71,22 +71,27 @@ class AppDatabase {
         created_at TEXT
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE api_cache (
+        endpoint TEXT PRIMARY KEY,
+        json_data TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    ''');
   }
 
   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
+    if (oldVersion < 3) {
       // Agar user version 1 se aa raha hai, toh sirf nayi table bana do
+
       await db.execute('''
-        CREATE TABLE transactions (
-          id TEXT PRIMARY KEY,
-          category_id TEXT NOT NULL,
-          amount REAL NOT NULL,
-          description TEXT,
-          payment_mode TEXT NOT NULL,
-          date TEXT NOT NULL,
-          created_at TEXT
-        )
-      ''');
+      CREATE TABLE api_cache (
+        endpoint TEXT PRIMARY KEY,
+        json_data TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    ''');
     }
   } // 🚨 YAHAN EK BRACKET MISSING THA! (Closes _upgradeDB)
 

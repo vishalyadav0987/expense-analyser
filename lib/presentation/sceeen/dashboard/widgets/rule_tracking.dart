@@ -2,11 +2,13 @@ import 'package:expense_analyser/core/constants/app_colors.dart';
 import 'package:expense_analyser/core/constants/app_radius.dart';
 import 'package:expense_analyser/core/constants/app_spacing.dart';
 import 'package:expense_analyser/core/constants/app_text_styles.dart';
+import 'package:expense_analyser/domain/models/response/dashboard_response.dart';
 import 'package:expense_analyser/presentation/sceeen/dashboard/widgets/glass_card.dart';
 import 'package:flutter/material.dart';
 
 class RuleTrackingCard extends StatelessWidget {
-  const RuleTrackingCard({super.key});
+  final RuleProgress data;
+  const RuleTrackingCard({super.key, required this.data});
 
   @override
   Widget build(BuildContext context) {
@@ -31,25 +33,25 @@ class RuleTrackingCard extends StatelessWidget {
           SizedBox(height: AppSpacing.lg),
           _buildRuleRow(
             context,
-            "NEEDS (50%)",
-            "48% Used",
-            0.48,
-            AppColors.primary,
+            "NEEDS (Limit: ₹${data.needs.limit.toStringAsFixed(0)})",
+            "${data.needs.percentageConsumed.toStringAsFixed(1)}% Used",
+            data.needs.percentageConsumed / 100,
+            data.needs.percentageConsumed > 100 ? AppColors.error : AppColors.primary,
           ),
           SizedBox(height: AppSpacing.md),
           _buildRuleRow(
             context,
-            "WANTS (30%)",
-            "36% Used",
-            0.72,
-            AppColors.error,
+            "WANTS (Limit: ₹${data.wants.limit.toStringAsFixed(0)})",
+            "${data.wants.percentageConsumed.toStringAsFixed(1)}% Used",
+            data.wants.percentageConsumed / 100,
+            data.wants.percentageConsumed > 100 ? AppColors.error : Colors.orangeAccent,
           ),
           SizedBox(height: AppSpacing.md),
           _buildRuleRow(
             context,
-            "SAVINGS (20%)",
-            "16% Saved",
-            0.80,
+            "SAVINGS (Target: ₹${data.savings.target.toStringAsFixed(0)})",
+            "${data.savings.percentageAchieved.toStringAsFixed(1)}% Saved",
+            data.savings.percentageAchieved / 100,
             Colors.blueAccent,
           ),
           SizedBox(height: AppSpacing.lg),
@@ -135,7 +137,7 @@ class RuleTrackingCard extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(AppRadius.full),
           child: LinearProgressIndicator(
-            value: progress,
+            value: progress.clamp(0.0, 1.0),
             minHeight: 8,
             backgroundColor: AppColors.backgroundSecondary,
             color: color,

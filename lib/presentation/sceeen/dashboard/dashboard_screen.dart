@@ -1,7 +1,12 @@
+import 'package:expense_analyser/application/dashboard/dashboard_bloc.dart';
+import 'package:expense_analyser/application/dashboard/dashboard_event.dart';
+import 'package:expense_analyser/application/dashboard/dashboard_state.dart';
 import 'package:expense_analyser/core/constants/app_colors.dart';
 import 'package:expense_analyser/core/constants/app_spacing.dart';
 import 'package:expense_analyser/core/constants/app_text_styles.dart';
 import 'package:expense_analyser/core/constants/responsive.dart';
+import 'package:expense_analyser/core/locator/setup_locator.dart';
+import 'package:expense_analyser/domain/models/response/dashboard_response.dart';
 import 'package:expense_analyser/presentation/sceeen/dashboard/widgets/glass_card.dart';
 import 'package:expense_analyser/presentation/sceeen/dashboard/widgets/monthly_card.dart';
 import 'package:expense_analyser/presentation/sceeen/dashboard/widgets/rule_tracking.dart';
@@ -9,9 +14,28 @@ import 'package:expense_analyser/presentation/sceeen/dashboard/widgets/transacti
 import 'package:expense_analyser/presentation/sceeen/dashboard/widgets/wealth_hero_card.dart';
 import 'package:expense_analyser/presentation/widgets/universalHeader/universal_header.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  @override
+  void initState() {
+    super.initState();
+    locator<DashboardBloc>().add(FetchDashboardEvent());
+  }
+
+  String _getScoreLabel(int score) {
+    if (score >= 80) return "EXCELLENT CONTROL";
+    if (score >= 60) return "STABLE FINANCES";
+    if (score >= 40) return "NEEDS ATTENTION";
+    return "HIGH RISK";
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,51 +44,123 @@ class DashboardScreen extends StatelessWidget {
       backgroundColor: AppColors.background,
       extendBodyBehindAppBar: true,
       appBar: UniversalHeader(username: "vi9shal"),
-      body: Stack(
-        children: [
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.all(AppSpacing.md),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const WealthHeroCard(),
-                  const SizedBox(height: 16),
-                  _buildFinancialScore(context),
-                  const SizedBox(height: 24),
-                  _buildSectionHeader(context, "Recent Transactions"),
-                  const SizedBox(height: 16),
-                  const TransactionTile(
-                    icon: Icons.restaurant,
-                    title: "Swiggy",
-                    category: "Food & Dining • Today",
-                    amount: "₹420.00",
-                    iconBgColor: Color(0xFFFFB3AF),
-                  ),
-                  const TransactionTile(
-                    icon: Icons.payments,
-                    title: "InnoTech Solutions",
-                    category: "Salary • 2 days ago",
-                    amount: "₹85k",
-                    iconBgColor: AppColors.primary,
-                    isIncome: true,
-                  ),
-                  const SizedBox(height: 16),
-                  RuleTrackingCard(),
-                  const SizedBox(height: 16),
-                  MonthlyGoalCard(),
-                ],
+      body: BlocBuilder<DashboardBloc, DashboardState>(
+        bloc: locator<DashboardBloc>(),
+        builder: (context, state) {
+          // 1. Loading State (First time only)
+          if (state is DashboardLoading || state is DashboardInitial) {
+            return const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            );
+          }
+
+          // 2. Error State
+          if (state is DashboardError) {
+            return Center(
+              child: Text(
+                state.message,
+                style: const TextStyle(color: Colors.red),
               ),
-            ),
-          ),
-        ],
+            );
+          }
+
+          // 3. Loaded State (Local Cache or Fresh API)
+          if (state is DashboardLoaded) {
+            final DashboardData data = state.data;
+            return Stack(
+              children: [
+                SafeArea(
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.all(AppSpacing.md),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Top Syncing Indicator (If showing offline data)
+                        if (state.isOfflineData)
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 8.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  width: 12,
+                                  height: 12,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  "Syncing fresh data...",
+                                  style: TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        WealthHeroCard(data: data.topCard),
+                        const SizedBox(height: 16),
+                        _buildFinancialScore(context, data.financialScore),
+                        const SizedBox(height: 24),
+                        _buildSectionHeader(context, "Recent Transactions"),
+                        const SizedBox(height: 16),
+                        if (data.recentTransactions.isEmpty)
+                          const Center(
+                            child: Text(
+                              "No transactions yet.",
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          ),
+
+                        ...data.recentTransactions.map((txn) {
+                          // Simple UI mapping based on type
+                          bool isIncome =
+                              txn.type ==
+                              "Saving"; // Just for visual difference
+                          IconData icon = txn.type == "Need"
+                              ? Icons.home
+                              : (txn.type == "Want"
+                                    ? Icons.restaurant
+                                    : Icons.savings);
+                          Color bgColor = txn.type == "Want"
+                              ? const Color(0xFFFFB3AF)
+                              : AppColors.primary;
+
+                          return TransactionTile(
+                            icon: icon,
+                            title: txn.description,
+                            category: "${txn.category} • ${txn.paymentMode}",
+                            amount: "₹${txn.amount.toStringAsFixed(0)}",
+                            iconBgColor: bgColor,
+                            isIncome: isIncome,
+                          );
+                        }),
+                        const SizedBox(height: 16),
+                        RuleTrackingCard(data: data.ruleProgress),
+                        const SizedBox(height: 16),
+                        MonthlyGoalCard(),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }
+
+          return SizedBox.shrink();
+        },
       ),
     );
   }
 
-  Widget _buildFinancialScore(BuildContext context) {
+  Widget _buildFinancialScore(BuildContext context, int score) {
+    Color scoreColor = score >= 60
+        ? AppColors.primary
+        : (score >= 40 ? Colors.orange : AppColors.error);
     return GlassCard(
-      borderColor: AppColors.primary,
+      borderColor: scoreColor,
       child: Column(
         children: [
           Text("FINANCIAL HEALTH SCORE", style: AppTextStyles.caption(context)),
@@ -72,7 +168,7 @@ class DashboardScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                "82",
+                score.toString(),
                 style: AppTextStyles.displayLarge(
                   context,
                 ).copyWith(fontSize: 64, color: AppColors.primary),
@@ -87,10 +183,8 @@ class DashboardScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              "EXCELLENT CONTROL",
-              style: AppTextStyles.caption(
-                context,
-              ).copyWith(color: AppColors.primary),
+              _getScoreLabel(score),
+              style: AppTextStyles.caption(context).copyWith(color: scoreColor),
             ),
           ),
         ],
